@@ -20,7 +20,18 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="index" options={{ 
+          headerShown: true,
+          headerTitle: "Dashboard", 
+          headerTitleAlign: "center" }} />
+        <Stack.Screen name="add-note" options={{ 
+          headerShown: true,
+          headerTitle: "Ajouter une note", 
+          headerTitleAlign: "center"}}/>
+        <Stack.Screen name="edit-note" options={{ 
+          headerShown: true,
+          headerTitle: "Modifier une note", 
+          headerTitleAlign: "center" }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />
