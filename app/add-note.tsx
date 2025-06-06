@@ -2,16 +2,35 @@ import { StyleSheet } from "react-native";
 import { ThemedView } from "@/components/ThemedView";
 import { TextInput, Button, Card } from 'react-native-paper';
 import React, { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function addNoteScreen() {
   const [title, settitle] = useState('');
   const [text, settext] = useState('');
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title || !text) {
       console.log('Erreur', 'Veuillez remplir tous les champs.');
     } else {
-      console.log('Succès', `Title: ${title}\nText: ${text}`);
+      const newNote = { title, text };
+  
+      try {
+        // Récupérer les anciennes notes
+        const storedNotes = await AsyncStorage.getItem('notes');
+        const notes = storedNotes ? JSON.parse(storedNotes) : [];
+  
+        // Ajouter la nouvelle note
+        const updatedNotes = [...notes, newNote];
+  
+        // Sauvegarder les notes mises à jour
+        await AsyncStorage.setItem('notes', JSON.stringify(updatedNotes));
+  
+        console.log('Note sauvegardée ✅');
+        settitle('');
+        settext('');
+      } catch (error) {
+        console.log('Erreur lors de la sauvegarde de la note', error);
+      }
     }
   };
   return (
