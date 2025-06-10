@@ -3,16 +3,22 @@ import { ThemedView } from "@/components/ThemedView";
 import { TextInput, Button, Card } from 'react-native-paper';
 import React, { useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from "expo-router";
 
 export default function addNoteScreen() {
   const [title, settitle] = useState('');
   const [text, settext] = useState('');
+  const router = useRouter();
 
   const handleSubmit = async () => {
     if (!title || !text) {
       console.log('Erreur', 'Veuillez remplir tous les champs.');
     } else {
-      const newNote = { title, text };
+      const newNote = {
+        title,
+        text,
+        date: new Date().toLocaleDateString(), // 🕒 Ajoute une date lisible
+      };
   
       try {
         // Récupérer les anciennes notes
@@ -25,9 +31,11 @@ export default function addNoteScreen() {
         // Sauvegarder les notes mises à jour
         await AsyncStorage.setItem('notes', JSON.stringify(updatedNotes));
   
-        console.log('Note sauvegardée ✅');
+        console.log('Note sauvegardée');
         settitle('');
         settext('');
+        router.push("/");
+        
       } catch (error) {
         console.log('Erreur lors de la sauvegarde de la note', error);
       }
