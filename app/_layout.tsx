@@ -26,11 +26,11 @@ export default function RootLayout() {
           headerTitleAlign: "center" }} />
         <Stack.Screen name="add-note" options={{ 
           headerShown: true,
-          headerTitle: "Ajouter une note", 
+          headerTitle: "Add a note", 
           headerTitleAlign: "center"}}/>
-        <Stack.Screen name="edit-note" options={{ 
+        <Stack.Screen name="edit-note/[id]" options={{ 
           headerShown: true,
-          headerTitle: "Modifier une note", 
+          headerTitle: "Edit a note", 
           headerTitleAlign: "center" }} />
         <Stack.Screen name="+not-found" />
       </Stack>
