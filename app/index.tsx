@@ -5,10 +5,12 @@ import { ThemedView } from "@/components/ThemedView";
 import { Link, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Checkbox } from 'react-native-paper';
 
 export default function Index() {
   const [notes, setNotes] = useState([]);
   const [clickStates, setClickStates] = useState<{ [key: number]: number }>({});
+  const [checked, setChecked] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -54,6 +56,16 @@ export default function Index() {
     return priority[stateA] - priority[stateB];
   });
 
+  const onPressFunction = () => {
+    alert("Long press detected!");
+    <Checkbox
+                       status={checked ? 'checked' : 'unchecked'}
+                       onPress={() => {
+                         setChecked(!checked);
+                       }}
+                  />
+  }
+
   return (
     <ThemedView style={styles.mainContainer}>
       {notes.length === 0 ? (
@@ -71,7 +83,7 @@ export default function Index() {
                 href={{ pathname: "/edit-note/[id]", params: { id: noteIndex.toString() } }}
                 asChild
               >
-                <TouchableOpacity style={styles.noteItem}>
+                <TouchableOpacity style={styles.noteItem} onLongPress={() => onPressFunction()}>
                   <View style={styles.noteHeader}>
                     <Text style={styles.noteTitle}>{item.title}</Text>
                     <TouchableOpacity
@@ -85,6 +97,7 @@ export default function Index() {
                   </View>
                   <Text style={styles.noteText}>{item.text || "No text"}</Text>
                   <Text style={styles.noteDate}>{item.date || "No date"}</Text>
+                  
                 </TouchableOpacity>
               </Link>
             );
