@@ -1,17 +1,27 @@
-// /app/index.tsx
-
-import { Text, StyleSheet, FlatList, View, TouchableOpacity } from "react-native";
-import { ThemedView } from "@/components/ThemedView";
-import { Link, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import {
+  Text,
+  StyleSheet,
+  FlatList,
+  View,
+  TouchableOpacity,
+  Alert,
+} from "react-native";
+import { ThemedView } from "@/components/ThemedView"; 
+import { Link, useFocusEffect, useNavigation, useRouter } from "expo-router";
+import { useCallback, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Checkbox } from 'react-native-paper';
+import { Checkbox } from "react-native-paper";
 
 export default function Index() {
-  const [notes, setNotes] = useState([]);
-  const [clickStates, setClickStates] = useState<{ [key: number]: number }>({});
-  const [checked, setChecked] = useState(false);
+  const [notes, setNotes] = useState([]); 
+  const [clickStates, setClickStates] = useState({}); // État de priorité de chaque note
+  const [checked, setChecked] = useState({}); 
+  const [selectionMode, setSelectionMode] = useState(false); // Mode sélection multiple actif ou non
 
+  const navigation = useNavigation(); 
+  const router = useRouter(); 
+
+  // Chargement des données à chaque focus de l'écran
   useFocusEffect(
     useCallback(() => {
       const loadData = async () => {
@@ -32,7 +42,35 @@ export default function Index() {
     }, [])
   );
 
-  const saveClickStates = async (newStates: { [key: number]: number }) => {
+  // Met à jour le header quand on entre/sort du mode sélection
+  useEffect(() => {
+    const count = Object.values(checked).filter(Boolean).length;
+
+    if (selectionMode) {
+      navigation.setOptions({
+        title: `${count} sélectionnée${count > 1 ? "s" : ""}`,
+        headerLeft: () => (
+          <TouchableOpacity onPress={cancelSelection} style={{ marginLeft: 10 }}>
+            <Text style={[styles.headerBtn, { color: "red" }]}>Cancel</Text>
+          </TouchableOpacity>
+        ),
+        headerRight: () => (
+          <TouchableOpacity onPress={deleteSelectedNotes} style={{ marginRight: 10 }}>
+            <Text style={[styles.headerBtn, { color: "black" }]}>Delete</Text>
+          </TouchableOpacity>
+        ),
+      });
+    } else {
+      navigation.setOptions({
+        title: "Dashboard",
+        headerLeft: undefined,
+        headerRight: undefined,
+      });
+    }
+  }, [selectionMode, checked]);
+
+  // Sauvegarde des états de priorité dans le stockage local
+  const saveClickStates = async (newStates) => {
     try {
       await AsyncStorage.setItem("clickStates", JSON.stringify(newStates));
     } catch (error) {
@@ -40,7 +78,8 @@ export default function Index() {
     }
   };
 
-  const changeColor = (index: number) => {
+  // Gère le changement de couleur (priorité) du carré
+  const changeColor = (index) => {
     setClickStates((prevStates) => {
       const newState = (prevStates[index] ?? 0) + 1;
       const updatedStates = { ...prevStates, [index]: newState % 3 };
@@ -49,6 +88,49 @@ export default function Index() {
     });
   };
 
+  // Supprime toutes les notes sélectionnées (après confirmation)
+  const deleteSelectedNotes = async () => {
+    Alert.alert(
+      "Delete",
+      "Do you really want to delete all the selected notes?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            const newNotes = notes.filter((_, index) => !checked[index]);
+            const updatedClickStates = {};
+            newNotes.forEach((_, newIndex) => {
+              updatedClickStates[newIndex] = 0;
+            });
+
+            setNotes(newNotes);
+            setClickStates(updatedClickStates);
+            setChecked({});
+            setSelectionMode(false);
+
+            await AsyncStorage.setItem("notes", JSON.stringify(newNotes));
+            await AsyncStorage.setItem("clickStates", JSON.stringify(updatedClickStates));
+          },
+        },
+      ]
+    );
+  };
+
+  // Quitte le mode sélection
+  const cancelSelection = () => {
+    setSelectionMode(false);
+    setChecked({});
+  };
+
+  // Active le mode sélection en appuyant longuement
+  const onLongPressNote = (index) => {
+    setSelectionMode(true);
+    setChecked({ [index]: true });
+  };
+
+  // Trie les notes selon leur priorité 
   const sortedNotes = [...notes].sort((a, b) => {
     const stateA = clickStates[notes.indexOf(a)] ?? 0;
     const stateB = clickStates[notes.indexOf(b)] ?? 0;
@@ -56,20 +138,10 @@ export default function Index() {
     return priority[stateA] - priority[stateB];
   });
 
-  const onPressFunction = () => {
-    alert("Long press detected!");
-    <Checkbox
-                       status={checked ? 'checked' : 'unchecked'}
-                       onPress={() => {
-                         setChecked(!checked);
-                       }}
-                  />
-  }
-
   return (
     <ThemedView style={styles.mainContainer}>
       {notes.length === 0 ? (
-        <Text>No notes yet...</Text>
+        <Text>Aucune note pour l’instant...</Text>
       ) : (
         <FlatList
           data={sortedNotes}
@@ -78,39 +150,67 @@ export default function Index() {
           columnWrapperStyle={{ justifyContent: "space-between" }}
           renderItem={({ item }) => {
             const noteIndex = notes.indexOf(item);
+
             return (
-              <Link
-                href={{ pathname: "/edit-note/[id]", params: { id: noteIndex.toString() } }}
-                asChild
+              <TouchableOpacity
+                style={styles.noteItem}
+                onLongPress={() => onLongPressNote(noteIndex)}
+                onPress={() => {
+                  if (selectionMode) {
+                    // Sélectionne/désélectionne une note
+                    setChecked((prev) => ({
+                      ...prev,
+                      [noteIndex]: !prev[noteIndex],
+                    }));
+                  } else {
+                    // Sinon, redirige vers l’édition de la note
+                    router.push({ pathname: "/edit-note/[id]", params: { id: noteIndex.toString() } });
+                  }
+                }}
               >
-                <TouchableOpacity style={styles.noteItem} onLongPress={() => onPressFunction()}>
-                  <View style={styles.noteHeader}>
-                    <Text style={styles.noteTitle}>{item.title}</Text>
-                    <TouchableOpacity
-                      style={[
-                        styles.square,
-                        clickStates[noteIndex] === 1 && styles.orange,
-                        clickStates[noteIndex] === 2 && styles.green,
-                      ]}
-                      onPress={() => changeColor(noteIndex)}
-                    />
-                  </View>
-                  <Text style={styles.noteText}>{item.text || "No text"}</Text>
-                  <Text style={styles.noteDate}>{item.date || "No date"}</Text>
-                  
-                </TouchableOpacity>
-              </Link>
+                <View style={styles.noteHeader}>
+                  <Text style={styles.noteTitle}>{item.title}</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.square,
+                      clickStates[noteIndex] === 1 && styles.orange,
+                      clickStates[noteIndex] === 2 && styles.green,
+                    ]}
+                    onPress={() => changeColor(noteIndex)}
+                  />
+                </View>
+
+                <Text style={styles.noteText}>{item.text || "No text"}</Text>
+                <Text style={styles.noteDate}>{item.date || "No date"}</Text>
+
+                {/* Affiche la checkbox seulement en mode sélection */}
+                {selectionMode && (
+                  <Checkbox
+                    status={checked[noteIndex] ? "checked" : "unchecked"}
+                    onPress={() =>
+                      setChecked((prev) => ({
+                        ...prev,
+                        [noteIndex]: !prev[noteIndex],
+                      }))
+                    }
+                  />
+                )}
+              </TouchableOpacity>
             );
           }}
         />
       )}
 
-      <Link style={styles.button} href="/add-note">
-        Add
-      </Link>
+      {/* Le bouton "Add" s'affiche uniquement en dehors du mode sélection */}
+      {!selectionMode && (
+        <Link style={styles.button} href="/add-note">
+          Add
+        </Link>
+      )}
     </ThemedView>
   );
 }
+
 
 const styles = StyleSheet.create({
   button: {
@@ -166,5 +266,9 @@ const styles = StyleSheet.create({
   },
   green: {
     backgroundColor: "green",
+  },
+  headerBtn: {
+    fontWeight: "bold",
+    fontSize: 16,
   },
 });
